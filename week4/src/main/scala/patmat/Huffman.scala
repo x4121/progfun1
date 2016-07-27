@@ -2,88 +2,44 @@ package patmat
 
 import common._
 
-/**
- * Assignment 4: Huffman coding
- *
- */
 object Huffman {
-
-  /**
-   * A huffman code is represented by a binary tree.
-   *
-   * Every `Leaf` node of the tree represents one character of the alphabet that the tree can encode.
-   * The weight of a `Leaf` is the frequency of appearance of the character.
-   *
-   * The branches of the huffman tree, the `Fork` nodes, represent a set containing all the characters
-   * present in the leaves below it. The weight of a `Fork` node is the sum of the weights of these
-   * leaves.
-   */
-    abstract class CodeTree
+  abstract class CodeTree
   case class Fork(left: CodeTree, right: CodeTree, chars: List[Char], weight: Int) extends CodeTree
   case class Leaf(char: Char, weight: Int) extends CodeTree
   
+  def weight(tree: CodeTree): Int = tree match {
+    case t: Leaf => t.weight
+    case t: Fork => t.weight
+  }
 
-  // Part 1: Basics
-    def weight(tree: CodeTree): Int = ??? // tree match ...
-  
-    def chars(tree: CodeTree): List[Char] = ??? // tree match ...
-  
+  def chars(tree: CodeTree): List[Char] = tree match {
+    case t: Leaf => List(t.char)
+    case t: Fork => t.chars
+  }
+
   def makeCodeTree(left: CodeTree, right: CodeTree) =
     Fork(left, right, chars(left) ::: chars(right), weight(left) + weight(right))
 
-
-
-  // Part 2: Generating Huffman trees
-
-  /**
-   * In this assignment, we are working with lists of characters. This function allows
-   * you to easily create a character list from a given string.
-   */
   def string2Chars(str: String): List[Char] = str.toList
 
-  /**
-   * This function computes for each unique character in the list `chars` the number of
-   * times it occurs. For example, the invocation
-   *
-   *   times(List('a', 'b', 'a'))
-   *
-   * should return the following (the order of the resulting list is not important):
-   *
-   *   List(('a', 2), ('b', 1))
-   *
-   * The type `List[(Char, Int)]` denotes a list of pairs, where each pair consists of a
-   * character and an integer. Pairs can be constructed easily using parentheses:
-   *
-   *   val pair: (Char, Int) = ('c', 1)
-   *
-   * In order to access the two elements of a pair, you can use the accessors `_1` and `_2`:
-   *
-   *   val theChar = pair._1
-   *   val theInt  = pair._2
-   *
-   * Another way to deconstruct a pair is using pattern matching:
-   *
-   *   pair match {
-   *     case (theChar, theInt) =>
-   *       println("character is: "+ theChar)
-   *       println("integer is  : "+ theInt)
-   *   }
-   */
-    def times(chars: List[Char]): List[(Char, Int)] = ???
+  def times(chars: List[Char]): List[(Char, Int)] = chars
+    .map(c => c -> 1)
+    .groupBy(_._1)
+    .map { case (_, t) =>
+      t.reduce { (a, b) =>
+        (a._1, a._2 + b._2)
+      }
+    }.toList
+
+    def makeOrderedLeafList(freqs: List[(Char, Int)]): List[Leaf] = freqs match {
+      case List() => List()
+      case pivot :: tail =>
+        makeOrderedLeafList(tail.filter(_._2 < pivot._2)) :::
+        List(Leaf.tupled(pivot)) :::
+        makeOrderedLeafList(tail.filter(_._2 >= pivot._2))
+    }
   
-  /**
-   * Returns a list of `Leaf` nodes for a given frequency table `freqs`.
-   *
-   * The returned list should be ordered by ascending weights (i.e. the
-   * head of the list should have the smallest weight), where the weight
-   * of a leaf is the frequency of the character.
-   */
-    def makeOrderedLeafList(freqs: List[(Char, Int)]): List[Leaf] = ???
-  
-  /**
-   * Checks whether the list `trees` contains only one single code tree.
-   */
-    def singleton(trees: List[CodeTree]): Boolean = ???
+    def singleton(trees: List[CodeTree]): Boolean = trees.size == 1
   
   /**
    * The parameter `trees` of this function is a list of code trees ordered
@@ -97,7 +53,19 @@ object Huffman {
    * If `trees` is a list of less than two elements, that list should be returned
    * unchanged.
    */
-    def combine(trees: List[CodeTree]): List[CodeTree] = ???
+    def combine(trees: List[CodeTree]): List[CodeTree] = {
+      def insert(n: Fork, l: List[CodeTree], acc: List[CodeTree]): List[CodeTree] = {
+        if (l.head.weight >= n.weight)
+          acc ::: List(n) ::: l
+        else
+          insert(n, l.tail, acc ::: List(l.head))
+      }
+      trees match {
+        case t if singleton(t) => t
+        case List(x1 :: x2 :: xs) =>
+          insert(makeCodeTree(x1, x2), xs, List())
+      }
+    }
   
   /**
    * This function will be called in the following way:
